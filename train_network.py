@@ -20,7 +20,7 @@ from accelerate.utils import set_seed
 from diffusers import DDPMScheduler
 from library import deepspeed_utils, model_util
 
-import library.train_util as train_util
+import library.train_util as train_util 
 from library.train_util import DreamBoothDataset
 import library.config_util as config_util
 from library.config_util import (
@@ -370,6 +370,8 @@ class NetworkTrainer:
         # DataLoaderのプロセス数：0 は persistent_workers が使えないので注意
         n_workers = min(args.max_data_loader_n_workers, os.cpu_count())  # cpu_count or max_data_loader_n_workers
 
+
+        
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset_group,
             batch_size=1,
@@ -999,6 +1001,18 @@ class NetworkTrainer:
                     loss_weights = batch["loss_weights"]  # 各sampleごとのweight
                     loss = loss * loss_weights
 
+
+                    # negposの値を入れる
+                    print(batch["fn"])
+
+
+                    # ---------if "image_types" in example and "neg" in example["image_types"]:
+                    if batch["image_type"]== "neg":
+                        logger.info(f"Applying negative learning for negative image type")
+                        loss = -loss
+                    # ----------------------------
+                    # ----------------------------
+                    
                     if args.min_snr_gamma:
                         loss = apply_snr_weight(loss, timesteps, noise_scheduler, args.min_snr_gamma, args.v_parameterization)
                     if args.scale_v_pred_loss_like_noise_pred:
@@ -1009,20 +1023,6 @@ class NetworkTrainer:
                         loss = apply_debiased_estimation(loss, timesteps, noise_scheduler, args.v_parameterization)
 
                     loss = loss.mean()  # 平均なのでbatch_sizeで割る必要なし
-
-
-                    # negposの値を入れる
-                    logger.info(f"neg_pos")
-
-
-
-                    # ------------------
-                    # ------------------
-                    # ------------------
-
-                # image_type に基づいて損失を調整
-                if "image_infos" in batch and batch["image_infos"] is not None:
-
 
                     accelerator.backward(loss)
                     if accelerator.sync_gradients:

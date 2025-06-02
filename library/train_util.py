@@ -168,7 +168,6 @@ class ImageInfo:
         self.image_type: Literal["pos", "neg", "normal"] = "normal"  # 画像の種類 (pos, neg, normal)
         self.image_base_name: str = ""  # _pos, _neg を除いたファイル名 (ペアリング用)
 
-
 class BucketManager:
     def __init__(self, no_upscale, max_reso, min_size, max_size, reso_steps) -> None:
         if max_size is not None:
@@ -1468,6 +1467,19 @@ class BaseDataset(torch.utils.data.Dataset):
 
         if self.debug_dataset:
             example["image_keys"] = bucket[image_index : image_index + self.batch_size]
+
+        example["fn"] =image_info.absolute_path
+        #neg posの判定
+        image_key = os.path.splitext(os.path.basename(image_info.absolute_path))[0]
+        if image_key.endswith("_pos"):
+            image_type = "pos"
+        elif image_key.endswith("_neg"):
+            image_type = "neg"
+        else:
+            image_type = "normal"
+            
+        example["image_type"] = image_type
+
         return example
 
     def get_item_for_caching(self, bucket, bucket_batch_size, image_index):
@@ -1646,16 +1658,6 @@ class DreamBoothDataset(BaseDataset):
                 captions = []
                 missing_captions = []
                 for img_path in img_paths:
-
-                    #neg posの判定
-                    image_key = os.path.splitext(os.path.basename(img_path))[0]
-                    if image_key.endswith("_pos"):
-                        image_type = "pos"
-                    elif image_key.endswith("_neg"):
-                        image_type = "neg"
-                    else:
-                        image_type = "normal"
-                        
                     cap_for_img = read_caption(img_path, subset.caption_extension, subset.enable_wildcard)
                     if cap_for_img is None and subset.class_tokens is None:
                         logger.warning(
