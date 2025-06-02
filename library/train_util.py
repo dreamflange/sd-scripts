@@ -19,6 +19,7 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    Literal,  # Literal をインポートに追加
 )
 from accelerate import Accelerator, InitProcessGroupKwargs, DistributedDataParallelKwargs, PartialState
 import glob
@@ -164,6 +165,8 @@ class ImageInfo:
         self.text_encoder_outputs2: Optional[torch.Tensor] = None
         self.text_encoder_pool2: Optional[torch.Tensor] = None
         self.alpha_mask: Optional[torch.Tensor] = None  # alpha mask can be flipped in runtime
+        self.image_type: Literal["pos", "neg", "normal"] = "normal"  # 画像の種類 (pos, neg, normal)
+        self.image_base_name: str = ""  # _pos, _neg を除いたファイル名 (ペアリング用)
 
 
 class BucketManager:
@@ -1643,6 +1646,16 @@ class DreamBoothDataset(BaseDataset):
                 captions = []
                 missing_captions = []
                 for img_path in img_paths:
+
+                    #neg posの判定
+                    image_key = os.path.splitext(os.path.basename(img_path))[0]
+                    if image_key.endswith("_pos"):
+                        image_type = "pos"
+                    elif image_key.endswith("_neg"):
+                        image_type = "neg"
+                    else:
+                        image_type = "normal"
+                        
                     cap_for_img = read_caption(img_path, subset.caption_extension, subset.enable_wildcard)
                     if cap_for_img is None and subset.class_tokens is None:
                         logger.warning(

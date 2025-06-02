@@ -1010,6 +1010,20 @@ class NetworkTrainer:
 
                     loss = loss.mean()  # 平均なのでbatch_sizeで割る必要なし
 
+
+                    # negposの値を入れる
+                    logger.info(f"neg_pos")
+
+
+
+                    # ------------------
+                    # ------------------
+                    # ------------------
+
+                # image_type に基づいて損失を調整
+                if "image_infos" in batch and batch["image_infos"] is not None:
+
+
                     accelerator.backward(loss)
                     if accelerator.sync_gradients:
                         self.all_reduce_network(accelerator, network)  # sync DDP grad manually
