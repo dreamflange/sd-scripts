@@ -1000,19 +1000,11 @@ class NetworkTrainer:
 
                     loss_weights = batch["loss_weights"]  # 各sampleごとのweight
                     loss = loss * loss_weights
-
-
-                    # negposの値を入れる
-                    print(batch["fn"])
-
-
-                    # ---------if "image_types" in example and "neg" in example["image_types"]:
-                    if batch["image_type"]== "neg":
-                        logger.info(f"Applying negative learning for negative image type")
-                        loss = -loss
-                    # ----------------------------
-                    # ----------------------------
                     
+                    # negは反転させる
+                    if batch["image_type"]== "neg":
+                        loss = -loss
+
                     if args.min_snr_gamma:
                         loss = apply_snr_weight(loss, timesteps, noise_scheduler, args.min_snr_gamma, args.v_parameterization)
                     if args.scale_v_pred_loss_like_noise_pred:
