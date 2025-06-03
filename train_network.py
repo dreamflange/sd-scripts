@@ -1004,6 +1004,8 @@ class NetworkTrainer:
                     # negは反転させる
                     if batch["image_type"]== "neg":
                         loss = -loss
+                    #debug
+                    print(batch["fn"])
 
                     if args.min_snr_gamma:
                         loss = apply_snr_weight(loss, timesteps, noise_scheduler, args.min_snr_gamma, args.v_parameterization)
