@@ -1000,7 +1000,7 @@ class NetworkTrainer:
 
                     loss_weights = batch["loss_weights"]  # 各sampleごとのweight
                     loss = loss * loss_weights
-                    
+
                     # negは反転させる
                     if batch["image_type"]== "neg":
                         loss = -loss
