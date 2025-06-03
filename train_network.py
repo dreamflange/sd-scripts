@@ -2,6 +2,7 @@ import importlib
 import argparse
 import math
 import os
+import re
 import sys
 import random
 import time
@@ -901,8 +902,37 @@ class NetworkTrainer:
             if initial_step > 0:
                 skipped_dataloader = accelerator.skip_first_batches(train_dataloader, initial_step - 1)
                 initial_step = 1
+            ################################################
 
-            for step, batch in enumerate(skipped_dataloader or train_dataloader):
+            # dataloaderの全バッチを取得
+            all_batches = list(skipped_dataloader or train_dataloader)
+
+            # プレフィックス（ID）を取り出す関数
+            def get_group_key(fn):
+                base = os.path.basename(fn)
+                match = re.match(r"(.+?)(?:_pos|_neg)?\.\w+$", base)
+                return match.group(1) if match else base
+
+            # グループ化：prefixごとにバッチをまとめる
+            grouped = {}
+            for batch in all_batches:
+                key = get_group_key(batch["fn"])
+                grouped.setdefault(key, []).append(batch)
+
+            # グループリストにしてランダムシャッフル
+            group_list = list(grouped.values())
+            random.shuffle(group_list)
+
+            # flatten（グループ内順序は維持）
+            sorted_batches = [batch for group in group_list for batch in group]
+
+            # イテラブルに
+            sorted_train_dataloader = iter(sorted_batches)
+
+
+            ####################################################
+            for step, batch in enumerate(sorted_train_dataloader):
+
                 current_step.value = global_step
                 if initial_step > 0:
                     initial_step -= 1
@@ -1001,11 +1031,7 @@ class NetworkTrainer:
                     loss_weights = batch["loss_weights"]  # 各sampleごとのweight
                     loss = loss * loss_weights
 
-                    # negは反転させる
-                    if batch["image_type"]== "neg":
-                        loss = -loss
-                    #debug
-                    print(batch["fn"])
+
 
                     if args.min_snr_gamma:
                         loss = apply_snr_weight(loss, timesteps, noise_scheduler, args.min_snr_gamma, args.v_parameterization)
@@ -1015,6 +1041,12 @@ class NetworkTrainer:
                         loss = add_v_prediction_like_loss(loss, timesteps, noise_scheduler, args.v_pred_like_loss)
                     if args.debiased_estimation_loss:
                         loss = apply_debiased_estimation(loss, timesteps, noise_scheduler, args.v_parameterization)
+
+                    # negは反転させる
+                    if batch["image_type"]== "neg":
+                        loss = -loss
+                    #debug
+                    print(batch["fn"])
 
                     loss = loss.mean()  # 平均なのでbatch_sizeで割る必要なし
 
