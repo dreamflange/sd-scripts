@@ -904,29 +904,32 @@ class NetworkTrainer:
                 initial_step = 1
             ################################################
 
-            # dataloaderの全バッチを取得
             all_batches = list(skipped_dataloader or train_dataloader)
 
-            # プレフィックス（ID）を取り出す関数
+            # グループキーの抽出関数（ID部分のみ）
             def get_group_key(fn):
                 base = os.path.basename(fn)
                 match = re.match(r"(.+?)(?:_pos|_neg)?\.\w+$", base)
                 return match.group(1) if match else base
 
-            # グループ化：prefixごとにバッチをまとめる
+            # グループ化
             grouped = {}
             for batch in all_batches:
                 key = get_group_key(batch["fn"])
                 grouped.setdefault(key, []).append(batch)
 
-            # グループリストにしてランダムシャッフル
+            # グループリスト化
             group_list = list(grouped.values())
-            random.shuffle(group_list)
+            random.shuffle(group_list)  # グループ単位でランダムシャッフル
 
-            # flatten（グループ内順序は維持）
-            sorted_batches = [batch for group in group_list for batch in group]
+            # グループ内を "_pos" → "_neg" の順（アルファベット逆順）にソート
+            def sort_group(group):
+                return sorted(group, key=lambda b: b["fn"], reverse=True)
 
-            # イテラブルに
+            # flatten
+            sorted_batches = [batch for group in group_list for batch in sort_group(group)]
+
+            # イテレータ化
             sorted_train_dataloader = iter(sorted_batches)
 
 
